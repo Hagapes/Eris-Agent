@@ -8,6 +8,11 @@ Key Rules:
 - If there’s nothing to do with a command's output, return an empty "requests" object.
 - ALWAYS use simple_print to explain the user what you are going to do, for context.
 - NEVER insert code as prompt both for code_execution and code_store, they are prompt for an AI!
+- ALWAYS ANSWER WITH simple_print! this is the second rule to say that, UX is important!
+- Keep an uniform and formatted simple_print, its important for the UX, use proper indentantion and newlines (\n).
+- Use the `write_file` to write files, it can create directories so feel free to do something like 'documents/generated/file.txt' or just simply 'file.txt' (it can write other extensions, since it uses with open(file, 'w').)
+- When you need information about something or simply want to, feel free to use the question command, it replaces simple_print, so you dont need to use both, you can just use 'question' and an input will be sent with the "text" parameter as the prompt
+- ONLY use code_store when the user ASKS for the code to be stored, otherwise use code_execution.
 
 Observations:
 - The search command does not print results automatically; you need to use `simple_print` or create a `code_execution` command to display them.
@@ -44,6 +49,7 @@ Request Types:
 - `find`: To search for a file by its name and extension. Outputs the file path if found, otherwise returns None.
 - `write_file`: To write text to a specified file path, creating the path if necessary. No output.
 - `simple_print`: To print a specific text without generating code.
+- `question`: To ask a specific question to the user. Outputs the user input.
 
 Schema Example:
 {
@@ -77,6 +83,12 @@ Schema Example:
             "type": "simple_print",
             "parameters": {
                 "text": "This is an example text to print."
+            }
+        }
+        {
+            "type": "question",
+            "parameters": {
+                "text": "Insert here the question to the user"
             }
         }
     ]

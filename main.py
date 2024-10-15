@@ -6,6 +6,8 @@ from os import environ, getcwd, listdir, makedirs
 import json
 from os.path import exists
 from rich import print
+from rich.markdown import Markdown
+from rich.console import Console
 
 # import local modules
 from commands.find import find
@@ -26,6 +28,7 @@ class SuAGENT:
         environ["GLOG_minloglevel"] = "2"
         self.gen = PythonCodeGenerator()
         self.search = Search()
+        self.console = Console()
 
     def _returnToAI(self, content: str):
         self.think(
@@ -36,20 +39,24 @@ class SuAGENT:
         rtrnSequence = ""
         for rqsts in response['requests']:
             if rqsts['type'] == 'code_execution':
-                print(f"[bold yellow][INFORMATION][/] 🧑‍💻 Generating code...")
+                print(f"\n[bold yellow][INFORMATION][/] 🧑‍💻 Generating code...")
                 rtrnSequence += str(self.gen.inject(rqsts['parameters']['prompt'], 'execute')) + '\n'
+            elif rqsts['type'] == 'code_store':
+                print(f"\n[bold yellow][INFORMATION][/] 🧑‍💻 Generating code...")
+                rtrnSequence += self.gen.inject(rqsts['parameters']['prompt'], 'store') 
             elif rqsts['type'] == 'search':
-                print(f"[bold yellow][INFORMATION][/] 🚢 Navigating on the web...")
+                print(f"\n[bold yellow][INFORMATION][/] 🚢 Navigating on the web...")
                 results = self.search.search(rqsts['parameters']['query'])
                 rtrnSequence += 'Response from search command:' + results + '\n'
 
             elif rqsts['type'] == 'find':
-                print(f"[bold yellow][INFORMATION][/] 🔎 Searching for file '{rqsts['parameters']['file_name']}'...")
+                print(f"\n[bold yellow][INFORMATION][/] 🔎 Searching for file '{rqsts['parameters']['file_name']}'...")
                 rtrnSequence += 'Response from find command:' + str(find(rqsts['parameters']['file_name'])) + '\n'
-            elif rqsts['type'] == 'writeInFile':
-                makedirs(rqsts['parameters']['path'], exist_ok=True)
+            elif rqsts['type'] == 'write_file':
+                try: makedirs(rqsts['parameters']['path'], exist_ok=True)
+                except FileExistsError: pass
 
-                print(f"[bold yellow][INFORMATION][/] 📝 Writing in file '{rqsts['parameters']['path']}'...")
+                print(f"\n[bold yellow][INFORMATION][/] 📝 Writing in file '{rqsts['parameters']['path']}'...")
 
                 if exists(rqsts['parameters']['path']):
                     ask = input(f"The file at {rqsts['parameters']['path']} already exists. Do you want to overwrite it? (Y/N) ")
@@ -59,29 +66,42 @@ class SuAGENT:
                     f.write(rqsts['parameters']['text'])
                 rtrnSequence += f"File written at {rqsts['parameters']['path']}" + '\n'
             elif rqsts['type'] == 'simple_print':
-                print(f"[bold green][A.I.][/]: {rqsts['parameters']['text']}")
+                print("[bold green][A.I.][/]: ", end="")
+                print(Markdown(f"{rqsts['parameters']['text']}\n"), end="\n")
+            elif rqsts['type'] == 'question':
+                while True:
+                    answer = self.console.input(f"[bold green][A.I.][/]: {rqsts['parameters']['text']} ")
+                    if answer.lower().strip() == "exit":
+                        rtrnSequence += f"User did not wanted to answer the question {rqsts['parameters']['text']}.\n"
+                        break
+                    if not answer: continue
+                    rtrnSequence += answer
+                    break
+
+            else: raise Exception(f"Invalid request type: {rqsts['type']}")
 
         if rtrnSequence != "":
             self._returnToAI(rtrnSequence)
 
     def think(self, prompt: str):
         additionalInfo = (
-            "Before recieving the user prompt, here is some additional info about the current enviroment: \n"
+            "THIS IS PART OF THE SYSTEM: Before recieving the user prompt, here is some additional info about the current enviroment: \n"
             f"Current path: {getcwd()}"
             f"Current directory content: {listdir()}"
             "Context: Use the 'current directory content' list to know what the user is speaking about, if he asks to change a filed name 'filename' but doesnt specify the extension, use the content as your resource to know what file he is talking about."
         )
 
-        raw = self.chat.send_message(additionalInfo + prompt)
+        raw = self.chat.send_message(additionalInfo + f"Now, here is the user prompt: {prompt}")
         try: resources = json.loads(raw.text.replace('```json', '').replace('```', ''))
         except: raise Exception(f"An error occurred while parsing the JSON string: {raw}")
 
         self._process(resources)
 
-        print(resources)
+        # print(resources)
 
 if __name__ == "__main__":
     agent = SuAGENT()
     while True:
         prompt = input(">> ")
+        if not prompt: continue
         agent.think(prompt)

@@ -28,7 +28,7 @@ class PythonCodeGenerator:
 
     def run(self, code):
         for line in code.split('\n'):
-            if 'import' in line:
+            if 'import' in line or 'from' in line:
                 parsedLine = line.split()
                 lib = parsedLine[1]
 
@@ -37,6 +37,7 @@ class PythonCodeGenerator:
                     self.install_module(lib)
 
         exec(code.replace("```python", "").replace("```", ""))
+        return f"The code was executed successfully.\nGenerated code: \n{code}"
 
     def ask(self, prompt: str):
         payload = {
@@ -76,7 +77,7 @@ class PythonCodeGenerator:
             with open(f"subtasks/output/{name}.py", "w") as f:
                 f.write(code.replace("```python", "").replace("```", ""))
             print(f"[bold green]Code stored at subtasks/output/{name}.py![/]")
-            return
+            return f"CODE_STORE OUTPUT: Code generated and stored at subtasks/output/{name}.py successfully!"
 
 if __name__ == "__main__":
     py_gen = PythonCodeGenerator()
