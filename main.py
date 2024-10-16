@@ -2,12 +2,16 @@
 from google.generativeai import configure as AIconfigure, GenerativeModel
 from google.generativeai.types.generation_types import StopCandidateException
 from google.api_core.exceptions import ResourceExhausted
-from os import environ, getcwd, listdir, makedirs
+from os import environ, getcwd, listdir, makedirs, chdir
 import json
 from os.path import exists
 from rich import print
 from rich.markdown import Markdown
 from rich.console import Console
+from subprocess import run as system
+from os import popen, startfile
+import time
+from datetime import date
 
 # import local modules
 from commands.find import find
@@ -16,9 +20,7 @@ from commands.search import Search
 
 # main class
 class SuAGENT:
-    # initializes
     def __init__(self):
-        # initializes gemini
         AIconfigure(api_key=environ.get("GOOGLE_API_KEY"))
         with open('systemrules.txt', 'r') as f:
             self.baseSYSTEM = f.read()
@@ -77,30 +79,72 @@ class SuAGENT:
                     if not answer: continue
                     rtrnSequence += answer
                     break
+            elif rqsts['type'] == 'terminal_run':
+                commands = rqsts['parameters']['commands']
+                stdout = ""
+                for command in commands:
+                    cmd = system(command, shell=True, capture_output=True, text=True)
+                    if cmd.stdout: stdout += cmd.stdout + '\n'
+                    if cmd.stderr: stdout += cmd.stderr + '\n'
+
+                if stdout != "": rtrnSequence += stdout
+            elif rqsts['type'] == 'open':
+                try: startfile(rqsts['parameters']['path'])
+                except Exception as e: rtrnSequence += f"Error while starting file: {str(e)}"
+            elif rqsts['type'] == 'read_file':
+                print(f"\n[bold yellow][INFORMATION][/] 📝 Reading from file '{rqsts['parameters']['path']}'...")
+                try:
+                    with open(rqsts['parameters']['path'], 'r') as f:
+                        rtrnSequence += f"The content of the file that you requested is (remember to print if the user asked/logically want you to print): \n{f.read()}"
+                except Exception as e:
+                    rtrnSequence += f"Error while reading file: {str(e)}"
+            elif rqsts['type'] == 'change_wdir':
+                try: chdir(rqsts['parameters']['path'])
+                except Exception as e: rtrnSequence += f"Error while changing directory: {str(e)}"
+            elif rqsts['type'] == 'makedirs':
+                try: makedirs(rqsts['parameters']['path'], exist_ok=True)
+                except Exception as e: rtrnSequence += f"Error while creating directory(ies): {str(e)}"
 
             else: raise Exception(f"Invalid request type: {rqsts['type']}")
+
 
         if rtrnSequence != "":
             self._returnToAI(rtrnSequence)
 
-    def think(self, prompt: str):
+    def think(self, prompt: str, debug: bool = False):
         additionalInfo = (
             "THIS IS PART OF THE SYSTEM: Before recieving the user prompt, here is some additional info about the current enviroment: \n"
             f"Current path: {getcwd()}"
             f"Current directory content: {listdir()}"
+            f"Current task list: {popen('tasklist').read()}"
+            f"Current date: {date.today()}"
+            f"Current timestamp: {time.time()}"
             "Context: Use the 'current directory content' list to know what the user is speaking about, if he asks to change a filed name 'filename' but doesnt specify the extension, use the content as your resource to know what file he is talking about."
         )
 
-        raw = self.chat.send_message(additionalInfo + f"Now, here is the user prompt: {prompt}")
+        for i in range(10):
+            if i == 9:
+                raise ResourceExhausted("Max tries exceeded. Exiting...")
+
+            try:
+                raw = self.chat.send_message(additionalInfo + f"Now, here is the user prompt: {prompt}")
+                break
+            except ResourceExhausted:
+                print("API is overloaded. Retrying in 10 seconds...") 
+                time.sleep(10)
+            except StopCandidateException:
+                print("Candidate error, trying again...")
+                
+
         try: resources = json.loads(raw.text.replace('```json', '').replace('```', ''))
         except: raise Exception(f"An error occurred while parsing the JSON string: {raw}")
 
         self._process(resources)
 
-        # print(resources)
+        if debug: print(resources)
 
 if __name__ == "__main__":
-    agent = SuAGENT()
+    agent = SuAGENT(debug=False)
     while True:
         prompt = input(">> ")
         if not prompt: continue

@@ -28,7 +28,7 @@ class PythonCodeGenerator:
 
     def run(self, code):
         for line in code.split('\n'):
-            if 'import' in line or 'from' in line:
+            if line.startswith("import") or line.startswith("from"):
                 parsedLine = line.split()
                 lib = parsedLine[1]
 
@@ -36,8 +36,11 @@ class PythonCodeGenerator:
                     print(f"[bold yellow][INFORMATION][/] Module {lib} not found, attempting to install.")
                     self.install_module(lib)
 
-        exec(code.replace("```python", "").replace("```", ""))
-        return f"The code was executed successfully.\nGenerated code: \n{code}"
+        try:
+            exec(code.replace("```python", "").replace("```", ""))
+            return f"The code was executed successfully.\nGenerated code: \n{code}"
+        except Exception as e:
+            return f"An error occurred while executing the code: {e}\nFor context, the code: {code}"
 
     def ask(self, prompt: str):
         payload = {
