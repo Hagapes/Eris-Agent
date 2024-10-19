@@ -19,8 +19,8 @@ from commands.generators import PythonCodeGenerator
 from commands.search import Search
 
 # main class
-class SuAGENT:
-    def __init__(self):
+class ErisAgent:
+    def __init__(self, debug: bool = False):
         AIconfigure(api_key=environ.get("GOOGLE_API_KEY"))
         with open('systemrules.txt', 'r') as f:
             self.baseSYSTEM = f.read()
@@ -31,6 +31,7 @@ class SuAGENT:
         self.gen = PythonCodeGenerator()
         self.search = Search()
         self.console = Console()
+        self.debug = debug
 
     def _returnToAI(self, content: str):
         self.think(
@@ -111,7 +112,7 @@ class SuAGENT:
         if rtrnSequence != "":
             self._returnToAI(rtrnSequence)
 
-    def think(self, prompt: str, debug: bool = False):
+    def think(self, prompt: str):
         additionalInfo = (
             "THIS IS PART OF THE SYSTEM: Before recieving the user prompt, here is some additional info about the current enviroment: \n"
             f"Current path: {getcwd()}"
@@ -141,11 +142,11 @@ class SuAGENT:
 
         self._process(resources)
 
-        if debug: print(resources)
+        if self.debug: print(resources)
 
 if __name__ == "__main__":
-    agent = SuAGENT(debug=False)
+    agent = ErisAgent(debug=False)
     while True:
-        prompt = input(">> ")
+        prompt = input(f"{getcwd()} >> ")
         if not prompt: continue
         agent.think(prompt)
