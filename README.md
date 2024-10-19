@@ -61,8 +61,8 @@ Integrates with the Tavily API to perform online searches based on the user's qu
 
 2. Set up environment variables:
     ```bash
-    export GOOGLE_API_KEY="your-google-api-key"
-    export SEARCH-TOKEN="your-search-api-key"
+    set GOOGLE_API_KEY="your-google-api-key"
+    set SEARCH-TOKEN="your-search-api-key"
     ```
 
 3. Install the requirements:
