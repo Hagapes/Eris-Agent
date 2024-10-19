@@ -55,8 +55,8 @@ Integrates with the Tavily API to perform online searches based on the user's qu
 
 1. Clone the repository:
     ```bash
-    git clone <repository-url>
-    cd <repository-name>
+    git clone https://github.com/Hagapes/Eris-Agent.git
+    cd Eris-Agent
     ```
 
 2. Set up environment variables:
